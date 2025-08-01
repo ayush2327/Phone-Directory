@@ -122,53 +122,50 @@ private:
         }
     }
 
-    void fuzzy_search_contact(string &contact, int root, int edit_dist, int i, vector<pair<string,int>> &result, int max_edit = 5, int max_results = 100) {
-        if ((int)result.size() >= max_results) return;
-        if (edit_dist > max_edit) return;
-        if (dp[edit_dist][i][root]) return;
-        dp[edit_dist][i][root] = true;
-
-        if (i == (int)contact.size()) {
-            if (trie[root].end) {
-                for (auto &entry : trie[root].numbers) {
-                    result.emplace_back(contact, entry.first);
-                    if ((int)result.size() >= max_results) return;
-                }
-            }
-            return;
-        }
-
-        if (trie[root].end && edit_dist <= max_edit) {
-            for (auto &entry : trie[root].numbers) {
-                result.emplace_back(contact, entry.first);
-                if ((int)result.size() >= max_results) return;
-            }
-        }
-
-        unsigned char c_index = (unsigned char)contact[i];
-
-        // Case 1: Exact match - move forward without increasing edit distance
-        if (trie[root].next[c_index]) {
-            fuzzy_search_contact(contact, trie[root].next[c_index], edit_dist, i + 1, result, max_edit, max_results);
-            if ((int)result.size() >= max_results) return;
-        }
-
-        // Case 2: Substitution and insertion - try all other children except exact match
-        for (int c = 0; c < 256; c++) {
-            if (c == c_index || !trie[root].next[c]) continue;
-
-            // Substitution: move forward in both contact and trie, increase edit_dist
-            fuzzy_search_contact(contact, trie[root].next[c], edit_dist + 1, i + 1, result, max_edit, max_results);
-            if ((int)result.size() >= max_results) return;
-
-            // Insertion: move forward in trie only, increase edit_dist
-            fuzzy_search_contact(contact, trie[root].next[c], edit_dist + 1, i, result, max_edit, max_results);
-            if ((int)result.size() >= max_results) return;
-        }
-
-        // Case 3: Deletion - skip one char in contact, increase edit_dist
-        fuzzy_search_contact(contact, root, edit_dist + 1, i + 1, result, max_edit, max_results);
-    }
+	void fuzzy_search_contact(string &contact, string &current, int root, int edit_dist, int i, vector<pair<string, int>> &result, int max_edit = 5, int max_results = 100) {
+	    if ((int)result.size() >= max_results || edit_dist > max_edit || dp[edit_dist][i][root]) return;
+	    
+	    dp[edit_dist][i][root] = true;
+	
+	    if (trie[root].end && i == (int)contact.size()) {
+	        for (auto &entry : trie[root].numbers) {
+	            result.emplace_back(current, entry.first);
+	            if ((int)result.size() >= max_results) return;
+	        }
+	    }
+	
+	    // Exact match
+	    if (i < (int)contact.size()) {
+	        unsigned char c_index = (unsigned char)contact[i];
+	        if (trie[root].next[c_index]) {
+	            current.push_back((char)c_index);
+	            fuzzy_search_contact(contact, current, trie[root].next[c_index], edit_dist, i + 1, result, max_edit, max_results);
+	            current.pop_back();
+	        }
+	    }
+	
+	    // Try all characters for insertion/substitution
+	    for (int c = 0; c < 256; c++) {
+	        if (!trie[root].next[c]) continue;
+	
+	        // Substitution (if character mismatches)
+	        if (i < (int)contact.size() && c != (unsigned char)contact[i]) {
+	            current.push_back((char)c);
+	            fuzzy_search_contact(contact, current, trie[root].next[c], edit_dist + 1, i + 1, result, max_edit, max_results);
+	            current.pop_back();
+	        }
+	
+	        // Insertion (insert character from Trie)
+	        current.push_back((char)c);
+	        fuzzy_search_contact(contact, current, trie[root].next[c], edit_dist + 1, i, result, max_edit, max_results);
+	        current.pop_back();
+	    }
+	
+	    // Deletion (skip character in contact)
+	    if (i < (int)contact.size()) {
+	        fuzzy_search_contact(contact, current, root, edit_dist + 1, i + 1, result, max_edit, max_results);
+	    }
+	}
 
     void get_all_contacts_dfs(int root, string &temp, vector<tuple<string, int, int>> &result) {
         if (!root) return;
@@ -531,59 +528,12 @@ public:
 };
 
 
-
-
-
 int32_t main(){
     ios::sync_with_stdio(0);
     cin.tie(0);
     
-    //freopen("ride.in" , "r" , stdin);
-    //freopen("ride.out" , "w" , stdout);
-    
+	PhoneDirectoryHandler handler;
+	handler.run();
 	 
     return 0;
 }
-
-
-
-/*
-✅ Features Already Implemented
-Name-keyed Trie:
-
-add_contact(name, number)
-
-delete_contact(name)
-
-delete_contact(name, number)
-
-exact_search(name, result)
-
-prefix_search(name, result)
-
-prefix_search_dfs(root, temp, result)
-
-search(name)
-
-🔜 Features To Implement (Planned)
-📚 Search Extensions:
-fuzzy_search(name, max_edit=5, max_results=100) using trie + DP
-
-search_history (store last 100 searches with time(0) timestamp)
-
-📑 Listing Features:
-List contacts sorted by name
-
-List contacts sorted by number
-
-List contacts sorted by last modified time
-
-💾 Data Persistence:
-import_contacts(filename)
-
-export_contacts(filename)
-
-📞 Dual Key Structure:
-A second Trie where number is the key, and contact name is the value.
-(Useful for reverse lookup, deletions, etc.)
-*/
