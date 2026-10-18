@@ -47,5 +47,19 @@ int main()
     assert(directory.searchNumberExact("9123456780").empty());
     assert(directory.size() == 1);
 
+    Contact snapshot = *directory.getContact(*second);
+
+    assert(directory.deleteContact(*second));
+    assert(directory.getContact(*second) == nullptr);
+
+    assert(directory.restoreContact(snapshot));
+
+    const Contact *restored = directory.getContact(*second);
+
+    assert(restored != nullptr);
+    assert(restored->getName() == snapshot.getName());
+    assert(restored->getPhoneNumber() == snapshot.getPhoneNumber());
+    assert(restored->getLastModified() == snapshot.getLastModified());
+
     std::cout << "All PhoneDirectory tests passed.\n";
 }

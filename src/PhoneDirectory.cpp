@@ -6,6 +6,96 @@
 #include <limits>
 #include <utility>
 
+bool PhoneDirectory::restoreContact(const Contact &snapshot)
+{
+    const ContactId id = snapshot.getId();
+
+    if (snapshot.getName().empty())
+        return false;
+
+    auto normalized = PhoneNumberNormalizer::normalize(snapshot.getPhoneNumber());
+
+    if (!normalized)
+        return false;
+
+    std::string number = std::move(*normalized);
+
+    auto numberMatches = numberIndex.exactSearch(number);
+
+    if (!numberMatches.empty() && numberMatches.front() != id)
+        return false;
+
+    auto it = contacts.find(id);
+
+    if (it == contacts.end())
+    {
+        auto [contactIt, inserted] = contacts.emplace(id, Contact(id, snapshot.getName(), number, snapshot.getLastModified()));
+
+        if (!inserted)
+            return false;
+
+        const Contact &contact = contactIt->second;
+
+        if (!nameIndex.insert(contact.getName(), id))
+        {
+            contacts.erase(contactIt);
+            return false;
+        }
+
+        if (!numberIndex.insert(contact.getPhoneNumber(), id))
+        {
+            nameIndex.erase(contact.getName(), id);
+            contacts.erase(contactIt);
+            return false;
+        }
+    }
+    else
+    {
+        Contact &current = it->second;
+        Contact previous = current;
+
+        if (!nameIndex.erase(previous.getName(), id))
+            return false;
+
+        if (!numberIndex.erase(previous.getPhoneNumber(), id))
+        {
+            nameIndex.insert(previous.getName(), id);
+            return false;
+        }
+
+        current.updateDetails(snapshot.getName(), number);
+        current.setLastModified(snapshot.getLastModified());
+
+        bool nameInserted = nameIndex.insert(current.getName(), id);
+
+        bool numberInserted = nameInserted && numberIndex.insert(current.getPhoneNumber(), id);
+
+        if (!nameInserted || !numberInserted)
+        {
+            if (nameInserted)
+                nameIndex.erase(current.getName(), id);
+
+            current.updateDetails(previous.getName(), previous.getPhoneNumber());
+            current.setLastModified(previous.getLastModified());
+
+            nameIndex.insert(previous.getName(), id);
+            numberIndex.insert(previous.getPhoneNumber(), id);
+
+            return false;
+        }
+    }
+
+    if (nextContactId != 0 && id >= nextContactId)
+    {
+        if (id == std::numeric_limits<ContactId>::max())
+            nextContactId = 0;
+        else
+            nextContactId = id + 1;
+    }
+
+    return true;
+}
+
 std::optional<ContactId> PhoneDirectory::addContact(std::string name, std::string phoneNumber)
 {
     if (name.empty())
@@ -165,7 +255,7 @@ std::vector<ContactId> PhoneDirectory::fuzzySearchName(std::string_view query, s
 
 std::vector<ContactId> PhoneDirectory::searchNumberExact(std::string_view number) const
 {
-     auto normalized = PhoneNumberNormalizer::normalize(number);
+    auto normalized = PhoneNumberNormalizer::normalize(number);
 
     if (!normalized)
         return {};

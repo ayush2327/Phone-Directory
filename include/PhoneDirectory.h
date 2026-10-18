@@ -28,6 +28,8 @@ public:
 
     bool deleteContact(ContactId id);
 
+    bool restoreContact(const Contact& snapshot);
+
     const Contact *getContact(ContactId id) const noexcept;
 
     std::vector<ContactId> searchNameExact(std::string_view name) const;
