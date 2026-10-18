@@ -1,23 +1,22 @@
 #include "PhoneDirectory.h"
+#include "PhoneNumberNormalizer.h"
 
 #include <algorithm>
 #include <ctime>
 #include <limits>
 #include <utility>
 
-bool PhoneDirectory::isValidPhoneNumber(std::string_view number) noexcept
-{
-    if (number.empty())
-        return false;
-
-    return std::all_of(number.begin(), number.end(), [](char c)
-                       { return c >= '0' && c <= '9'; });
-}
-
 std::optional<ContactId> PhoneDirectory::addContact(std::string name, std::string phoneNumber)
 {
-    if (name.empty() || !isValidPhoneNumber(phoneNumber))
+    if (name.empty())
         return std::nullopt;
+
+    auto normalized = PhoneNumberNormalizer::normalize(phoneNumber);
+
+    if (!normalized)
+        return std::nullopt;
+
+    phoneNumber = std::move(*normalized);
 
     if (nextContactId == 0)
         return std::nullopt;
@@ -85,11 +84,16 @@ bool PhoneDirectory::updateContact(ContactId id, std::string_view newNameView, s
     if (it == contacts.end())
         return false;
 
-    std::string newName(newNameView);
-    std::string newPhoneNumber(newPhoneNumberView);
-
-    if (newName.empty() || !isValidPhoneNumber(newPhoneNumber))
+    if (newNameView.empty())
         return false;
+
+    auto normalized = PhoneNumberNormalizer::normalize(newPhoneNumberView);
+
+    if (!normalized)
+        return false;
+
+    std::string newName(newNameView);
+    std::string newPhoneNumber = std::move(*normalized);
 
     auto existing = numberIndex.exactSearch(newPhoneNumber);
 
@@ -161,12 +165,22 @@ std::vector<ContactId> PhoneDirectory::fuzzySearchName(std::string_view query, s
 
 std::vector<ContactId> PhoneDirectory::searchNumberExact(std::string_view number) const
 {
-    return numberIndex.exactSearch(number);
+     auto normalized = PhoneNumberNormalizer::normalize(number);
+
+    if (!normalized)
+        return {};
+
+    return numberIndex.exactSearch(*normalized);
 }
 
 std::vector<ContactId> PhoneDirectory::searchNumberPrefix(std::string_view prefix) const
 {
-    return numberIndex.prefixSearch(prefix);
+    auto normalized = PhoneNumberNormalizer::normalize(prefix);
+
+    if (!normalized)
+        return {};
+
+    return numberIndex.prefixSearch(*normalized);
 }
 
 std::vector<Contact> PhoneDirectory::getAllContacts() const

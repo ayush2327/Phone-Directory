@@ -21,8 +21,6 @@ private:
 
     ContactId nextContactId = 1;
 
-    static bool isValidPhoneNumber(std::string_view number) noexcept;
-
 public:
     std::optional<ContactId> addContact(std::string name, std::string phoneNumber);
 
