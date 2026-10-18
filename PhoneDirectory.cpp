@@ -122,13 +122,14 @@ private:
         }
     }
 
-	void fuzzy_search_contact(string &contact, string &current, int root, int edit_dist, int i, vector<pair<string, int>> &result, int max_edit = 5, int max_results = 100) {
+	void fuzzy_search_contact(const string &contact, string &current, int root, int edit_dist, int i, vector<pair<string, int>> &result, unordered_set<int>& seenNumbers, int max_edit = 5, int max_results = 100) {
 	    if ((int)result.size() >= max_results || edit_dist > max_edit || dp[edit_dist][i][root]) return;
 	    
 	    dp[edit_dist][i][root] = true;
 	
 	    if (trie[root].end && i == (int)contact.size()) {
 	        for (auto &entry : trie[root].numbers) {
+                if(!seenNumbers.insert(entry.first).second) continue;
 	            result.emplace_back(current, entry.first);
 	            if ((int)result.size() >= max_results) return;
 	        }
@@ -139,7 +140,7 @@ private:
 	        unsigned char c_index = (unsigned char)contact[i];
 	        if (trie[root].next[c_index]) {
 	            current.push_back((char)c_index);
-	            fuzzy_search_contact(contact, current, trie[root].next[c_index], edit_dist, i + 1, result, max_edit, max_results);
+	            fuzzy_search_contact(contact, current, trie[root].next[c_index], edit_dist, i + 1, result, seenNumbers, max_edit, max_results);
 	            current.pop_back();
 	        }
 	    }
@@ -151,24 +152,23 @@ private:
 	        // Substitution (if character mismatches)
 	        if (i < (int)contact.size() && c != (unsigned char)contact[i]) {
 	            current.push_back((char)c);
-	            fuzzy_search_contact(contact, current, trie[root].next[c], edit_dist + 1, i + 1, result, max_edit, max_results);
+	            fuzzy_search_contact(contact, current, trie[root].next[c], edit_dist + 1, i + 1, result, seenNumbers, max_edit, max_results);
 	            current.pop_back();
 	        }
 	
 	        // Insertion (insert character from Trie)
 	        current.push_back((char)c);
-	        fuzzy_search_contact(contact, current, trie[root].next[c], edit_dist + 1, i, result, max_edit, max_results);
+	        fuzzy_search_contact(contact, current, trie[root].next[c], edit_dist + 1, i, result, seenNumbers, max_edit, max_results);
 	        current.pop_back();
 	    }
 	
 	    // Deletion (skip character in contact)
 	    if (i < (int)contact.size()) {
-	        fuzzy_search_contact(contact, current, root, edit_dist + 1, i + 1, result, max_edit, max_results);
+	        fuzzy_search_contact(contact, current, root, edit_dist + 1, i + 1, result, seenNumbers, max_edit, max_results);
 	    }
 	}
 
     void get_all_contacts_dfs(int root, string &temp, vector<tuple<string, int, int>> &result) {
-        if (!root) return;
         if (trie[root].end) {
             for (auto &entry : trie[root].numbers) {
                 result.emplace_back(temp, entry.first, entry.second);
@@ -236,7 +236,7 @@ public:
     }
 
     bool fuzzy_search(const string &contact, vector<pair<string, int>> &result) {
-        int max_edit = 5;
+        int max_edit = 3;
         int max_results = 100;
         long long estimated_size = 1LL * max_edit * contact.size() * trie.size();
         if (estimated_size > 1e7) {
@@ -244,7 +244,12 @@ public:
             return false;
         }
         dp.assign(max_edit + 1, vector<vector<bool>>(contact.size() + 1, vector<bool>(trie.size(), false)));
-        fuzzy_search_contact(const_cast<string&>(contact), 0, 0, 0, result, max_edit, max_results);
+
+        string current;
+        unordered_set<int> seenNumbers;
+
+        fuzzy_search_contact(contact, current, 0, 0, 0, result, seenNumbers, max_edit, max_results);
+
         return !result.empty();
     }
 
@@ -285,7 +290,7 @@ public:
         get_all_contacts_dfs(0, temp, result);
         if (sort_type == "NAME") sort_by_name(result);
         else if (sort_type == "NUMBER") sort_by_number(result);
-        else if (sort_type == "DATE MODIFIED") sort_by_date_modified(result);
+        else if (sort_type == "DATE_MODIFIED") sort_by_date_modified(result);
         else return false;
         return true;
     }
@@ -293,6 +298,51 @@ public:
     void get_all_contacts(vector<tuple<string, int, int>> &result) {
         string temp;
         get_all_contacts_dfs(0, temp, result);
+    }
+
+    //Public function to import contacts from CSV
+    bool import_contacts(const string &filename, vector<pair<string, int>> &result){
+        ifstream file(filename);
+
+        if (!file.is_open()) {
+            cerr << "Failed to open file for reading: "
+                << filename << '\n';
+            return false;
+        }
+
+        string line;
+
+        // Skip the CSV header
+        if (!getline(file, line))
+            return false;
+
+        while (getline(file, line)) {
+            if (line.empty())
+                continue;
+
+            stringstream ss(line);
+            string name, number_str, timestamp_str;
+
+            if (!getline(ss, name, ','))
+                continue;
+
+            if (!getline(ss, number_str, ','))
+                continue;
+
+            getline(ss, timestamp_str);
+
+            try {
+                int number = stoll(number_str);
+
+                add_contact(name, number);
+                result.emplace_back(name, number);
+            }
+            catch (const exception &) {
+                cerr << "Skipping invalid CSV record\n";
+            }
+        }
+
+        return true;
     }
 
     // Public function to export contacts to CSV
@@ -458,27 +508,46 @@ private:
         } else cout << "No similar contacts found.\n";
     }
 
+    void printContactList(const vector<tuple<string, int, int>> &contacts) {
+        for (const auto &[name, number, modifiedAt] : contacts) {
+            time_t timestamp = static_cast<time_t>(modifiedAt);
+            tm *date = localtime(&timestamp);
+
+            cout << name << ": " << number
+                << ", Date Modified - ";
+
+            if (date != nullptr)
+                cout << put_time(date, "%d/%m/%Y");
+            else
+                cout << "Unknown";
+
+            cout << '\n';
+        }
+    }
+
     void sortContacts() {
         string type;
-        cout << "Sort by (NAME/NUMBER/DATE_MODIFIED): ";
+        cout << "Sort by (NAME / NUMBER / DATE_MODIFIED): ";
         cin >> type;
+
         vector<tuple<string, int, int>> result;
-        nameTrie.sort_contact(type, result);
-        for (auto &[name, num, time] : result) {
-            cout << name << ": " << num << " (" << time << ")" << endl;
+
+        if(!nameTrie.sort_contacts(type, result)){
+            cout<<"Invalid sort type \n";
+            return;
         }
+
+        printContactList(result);
     }
 
     void printAll() {
         vector<tuple<string, int, int>> result;
         nameTrie.get_all_contacts(result);
-        for (auto &[name, num, time] : result) {
-            cout << name << ": " << num << " (" << time << ")" << endl;
-        }
+        printContactList(result);
     }
 
     void exportContacts() {
-        nameTrie.export_contacts("contacts.csv");
+        nameTrie.export_to_csv("contacts.csv");
     }
 
     void importContacts() {
@@ -530,7 +599,6 @@ public:
 
 int32_t main(){
     ios::sync_with_stdio(0);
-    cin.tie(0);
     
 	PhoneDirectoryHandler handler;
 	handler.run();
