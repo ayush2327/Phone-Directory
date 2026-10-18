@@ -23,9 +23,9 @@ std::size_t NameTrie::findNode(std::string_view key) const noexcept
     return node;
 }
 
-void NameTrie::insert(std::string_view key, ContactId id)
+bool NameTrie::insert(std::string_view key, ContactId id)
 {
-    if (key.empty()) return;
+    if (key.empty()) return false;
 
     std::size_t node = 0;
 
@@ -43,8 +43,9 @@ void NameTrie::insert(std::string_view key, ContactId id)
 
     auto &ids = trie[node].contactIds;
 
-    if (std::find(ids.begin(), ids.end(), id) == ids.end()) ids.push_back(id); // we can skip find(), if we check using NumberTrie before calling NameTrie::insert()
-
+    if (std::find(ids.begin(), ids.end(), id) != ids.end()) return false;
+    ids.push_back(id); // we can skip find(), if we check using NumberTrie before calling NameTrie::insert()
+    return true;
 }
 
 bool NameTrie::erase(std::string_view key, ContactId id)

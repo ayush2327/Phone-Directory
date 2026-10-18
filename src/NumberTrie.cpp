@@ -38,10 +38,9 @@ std::size_t NumberTrie::findNode(std::string_view key) const noexcept
     return node;
 }
 
-void NumberTrie::insert(std::string_view key, ContactId id)
+bool NumberTrie::insert(std::string_view key, ContactId id)
 {
-    if (!isValidKey(key))
-        return;
+    if (!isValidKey(key)) return false;
 
     std::size_t node = 0;
 
@@ -59,11 +58,10 @@ void NumberTrie::insert(std::string_view key, ContactId id)
         node = trie[node].next[digit];
     }
 
-    if (trie[node].terminal && trie[node].contactId != id)
-        return;
+    if (trie[node].terminal && trie[node].contactId != id) return false;
 
     trie[node].contactId = id;
-    trie[node].terminal = true;
+    return trie[node].terminal = true;
 }
 
 bool NumberTrie::erase(std::string_view key, ContactId id)

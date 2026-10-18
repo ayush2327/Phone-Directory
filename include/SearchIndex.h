@@ -8,7 +8,7 @@
 class SearchIndex
 {
 public:
-    virtual void insert(std::string_view key, ContactId id) = 0;
+    virtual bool insert(std::string_view key, ContactId id) = 0;
 
     virtual bool erase(std::string_view key, ContactId id) = 0;
 

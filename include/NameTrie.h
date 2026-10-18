@@ -44,7 +44,7 @@ private:
 public:
     NameTrie();
 
-    void insert(std::string_view key, ContactId id) override;
+    bool insert(std::string_view key, ContactId id) override;
 
     bool erase(std::string_view key, ContactId id) override;
 

@@ -64,6 +64,8 @@ int main()
     assert(numberTrie.erase("9876543211", 2));
     assert(numberTrie.exactSearch("9876543211").empty());
 
+    assert(!numberTrie.insert("9876543210", 99));
+    
     std::cout << "All Trie smoke tests passed.\n";
     return 0;
 }
