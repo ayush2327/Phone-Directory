@@ -24,6 +24,7 @@ private:
     void addContact();
     void updateContact();
     void deleteContact();
+    void sortContacts();
     void listContacts() const;
     void printHistory() const;
     void printHelp() const;

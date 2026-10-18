@@ -1,4 +1,5 @@
 #include "ConsoleUI.h"
+#include "SortStrategy.h"
 
 #include <algorithm>
 #include <ctime>
@@ -242,6 +243,48 @@ void ConsoleUI::deleteContact()
         std::cout << "Contact not found or could not be deleted.\n";
 }
 
+void ConsoleUI::sortContacts()
+{
+    auto contacts = directory.getAllContacts();
+
+    if (contacts.empty())
+    {
+        std::cout << "Directory is empty.\n";
+        return;
+    }
+
+    std::string type;
+
+    std::cout << "Sort by (name / number / modified): ";
+
+    if (!std::getline(std::cin, type))
+        return;
+
+    if (type == "name")
+    {
+        SortByName strategy;
+        strategy.sort(contacts);
+    }
+    else if (type == "number")
+    {
+        SortByNumber strategy;
+        strategy.sort(contacts);
+    }
+    else if (type == "modified")
+    {
+        SortByLastModified strategy;
+        strategy.sort(contacts);
+    }
+    else
+    {
+        std::cout << "Invalid sort type.\n";
+        return;
+    }
+
+    for (const Contact &contact : contacts)
+        printContact(contact);
+}
+
 void ConsoleUI::listContacts() const
 {
     auto contacts = directory.getAllContacts();
@@ -290,6 +333,7 @@ void ConsoleUI::printHelp() const
         << "search  - Search contacts by name or phone number\n"
         << "update  - Search for and update a contact\n"
         << "delete  - Search for and delete a contact\n"
+        << "sort    - Sort contacts by name, number, or modification time\n"
         << "list    - List all contacts\n"
         << "history - Show recent searches\n"
         << "help    - Show commands\n"
@@ -329,6 +373,8 @@ void ConsoleUI::run()
             updateContact();
         else if (command == "delete")
             deleteContact();
+        else if (command == "sort")
+            sortContacts();
         else if (command == "list")
             listContacts();
         else if (command == "history")
