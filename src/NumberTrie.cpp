@@ -40,7 +40,8 @@ std::size_t NumberTrie::findNode(std::string_view key) const noexcept
 
 bool NumberTrie::insert(std::string_view key, ContactId id)
 {
-    if (!isValidKey(key)) return false;
+    if (!isValidKey(key))
+        return false;
 
     std::size_t node = 0;
 
@@ -58,7 +59,8 @@ bool NumberTrie::insert(std::string_view key, ContactId id)
         node = trie[node].next[digit];
     }
 
-    if (trie[node].terminal && trie[node].contactId != id) return false;
+    if (trie[node].terminal && trie[node].contactId != id)
+        return false;
 
     trie[node].contactId = id;
     return trie[node].terminal = true;

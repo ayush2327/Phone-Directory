@@ -44,6 +44,7 @@ bool NameTrie::insert(std::string_view key, ContactId id)
     auto &ids = trie[node].contactIds;
 
     if (std::find(ids.begin(), ids.end(), id) != ids.end()) return false;
+    
     ids.push_back(id); // we can skip find(), if we check using NumberTrie before calling NameTrie::insert()
     return true;
 }
