@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PhoneDirectory.h"
+#include "SearchHistory.h"
 
 #include <optional>
 #include <string>
@@ -11,6 +12,7 @@ class ConsoleUI
 {
 private:
     PhoneDirectory &directory;
+    SearchHistory history;
 
     static bool parseId(const std::string &text, ContactId &id);
 
@@ -23,6 +25,7 @@ private:
     void updateContact();
     void deleteContact();
     void listContacts() const;
+    void printHistory() const;
     void printHelp() const;
 
 public:

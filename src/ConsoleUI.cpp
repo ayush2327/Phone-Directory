@@ -10,34 +10,41 @@
 #include <utility>
 #include <vector>
 
-ConsoleUI::ConsoleUI(PhoneDirectory& directory) : directory(directory) {}
+ConsoleUI::ConsoleUI(PhoneDirectory &directory) : directory(directory) {}
 
-bool ConsoleUI::parseId(const std::string& text, ContactId& id) {
+bool ConsoleUI::parseId(const std::string &text, ContactId &id)
+{
     if (text.empty())
         return false;
 
-    for (unsigned char c : text) {
+    for (unsigned char c : text)
+    {
         if (c < '0' || c > '9')
             return false;
     }
 
-    try {
+    try
+    {
         std::size_t pos = 0;
         unsigned long long value = std::stoull(text, &pos);
 
         if (pos != text.size() ||
-            value > std::numeric_limits<ContactId>::max()) {
+            value > std::numeric_limits<ContactId>::max())
+        {
             return false;
         }
 
         id = static_cast<ContactId>(value);
         return true;
-    } catch (...) {
+    }
+    catch (...)
+    {
         return false;
     }
 }
 
-void ConsoleUI::printContact(const Contact& contact, bool showId) const {
+void ConsoleUI::printContact(const Contact &contact, bool showId) const
+{
     if (showId)
         std::cout << "ID: " << contact.getId() << " |";
 
@@ -45,7 +52,7 @@ void ConsoleUI::printContact(const Contact& contact, bool showId) const {
               << " | Date Modified - ";
 
     std::time_t timestamp = contact.getLastModified();
-    const std::tm* date = std::localtime(&timestamp);
+    const std::tm *date = std::localtime(&timestamp);
 
     if (date != nullptr)
         std::cout << std::put_time(date, "%d/%m/%Y");
@@ -55,14 +62,17 @@ void ConsoleUI::printContact(const Contact& contact, bool showId) const {
     std::cout << '\n';
 }
 
-void ConsoleUI::printContactMatches(const std::vector<ContactId>& ids, bool showId) const {
-    for (const ContactId& id : ids) {
-        if (const Contact* contact = directory.getContact(id))
+void ConsoleUI::printContactMatches(const std::vector<ContactId> &ids, bool showId) const
+{
+    for (const ContactId &id : ids)
+    {
+        if (const Contact *contact = directory.getContact(id))
             printContact(*contact, showId);
     }
 }
 
-void ConsoleUI::addContact() {
+void ConsoleUI::addContact()
+{
     std::string name, number;
 
     std::cout << "Enter name: ";
@@ -82,7 +92,8 @@ void ConsoleUI::addContact() {
                      "the number may already exist.\n";
 }
 
-std::vector<ContactId> ConsoleUI::searchContacts() {
+std::vector<ContactId> ConsoleUI::searchContacts()
+{
     std::string searchType;
     std::string query;
 
@@ -90,7 +101,8 @@ std::vector<ContactId> ConsoleUI::searchContacts() {
     if (!std::getline(std::cin, searchType))
         return {};
 
-    if (searchType != "1" && searchType != "2") {
+    if (searchType != "1" && searchType != "2")
+    {
         std::cout << "Invalid search type. Enter 1 for name or 2 for number.\n";
         return {};
     }
@@ -106,34 +118,43 @@ std::vector<ContactId> ConsoleUI::searchContacts() {
     std::vector<ContactId> ids;
     std::unordered_map<ContactId, bool> seen;
 
-    auto appendUnique = [&](const std::vector<ContactId>& matches) {
-        for (ContactId id : matches) {
+    auto appendUnique = [&](const std::vector<ContactId> &matches)
+    {
+        for (ContactId id : matches)
+        {
             auto [it, inserted] = seen.emplace(id, true);
             if (inserted)
                 ids.push_back(id);
         }
     };
 
-    if (searchType == "1") {
+    if (searchType == "1")
+    {
         auto exactMatches = directory.searchNameExact(query);
 
-        if (!exactMatches.empty()) {
+        if (!exactMatches.empty())
+        {
             appendUnique(exactMatches);
         }
-        else {
+        else
+        {
             appendUnique(directory.searchNamePrefix(query));
             appendUnique(directory.fuzzySearchName(query));
         }
     }
-    else {
+    else
+    {
         appendUnique(directory.searchNumberExact(query));
         appendUnique(directory.searchNumberPrefix(query));
     }
 
+    history.record(searchType == "1" ? SearchKind::Name : SearchKind::PhoneNumber, query);
+
     return ids;
 }
 
-std::optional<ContactId> ConsoleUI::selectContact(const std::vector<ContactId>& candidates, std::string_view action) const {
+std::optional<ContactId> ConsoleUI::selectContact(const std::vector<ContactId> &candidates, std::string_view action) const
+{
     std::string text;
     ContactId id;
 
@@ -143,17 +164,20 @@ std::optional<ContactId> ConsoleUI::selectContact(const std::vector<ContactId>& 
     if (!std::getline(std::cin, text) || text.empty())
         return std::nullopt;
 
-    if (!parseId(text, id)) {
+    if (!parseId(text, id))
+    {
         std::cout << "Invalid contact ID.\n";
         return std::nullopt;
     }
 
-    if (std::find(candidates.begin(), candidates.end(), id) == candidates.end()) {
+    if (std::find(candidates.begin(), candidates.end(), id) == candidates.end())
+    {
         std::cout << "That ID is not among the search results.\n";
         return std::nullopt;
     }
 
-    if (directory.getContact(id) == nullptr) {
+    if (directory.getContact(id) == nullptr)
+    {
         std::cout << "Contact no longer exists. Please search again.\n";
         return std::nullopt;
     }
@@ -161,10 +185,12 @@ std::optional<ContactId> ConsoleUI::selectContact(const std::vector<ContactId>& 
     return id;
 }
 
-void ConsoleUI::updateContact() {
+void ConsoleUI::updateContact()
+{
     std::vector<ContactId> candidates = searchContacts();
 
-    if (candidates.empty()) {
+    if (candidates.empty())
+    {
         std::cout << "No matching contacts found.\n";
         return;
     }
@@ -173,7 +199,8 @@ void ConsoleUI::updateContact() {
     printContactMatches(candidates, true);
 
     auto selectedId = selectContact(candidates, "update");
-    if (!selectedId) return;
+    if (!selectedId)
+        return;
 
     std::string name, number;
 
@@ -192,10 +219,12 @@ void ConsoleUI::updateContact() {
                      "the number may already be in use.\n";
 }
 
-void ConsoleUI::deleteContact() {
+void ConsoleUI::deleteContact()
+{
     std::vector<ContactId> candidates = searchContacts();
 
-    if (candidates.empty()) {
+    if (candidates.empty())
+    {
         std::cout << "No matching contacts found.\n";
         return;
     }
@@ -204,7 +233,8 @@ void ConsoleUI::deleteContact() {
     printContactMatches(candidates, true);
 
     auto selectedId = selectContact(candidates, "delete");
-    if (!selectedId) return;
+    if (!selectedId)
+        return;
 
     if (directory.deleteContact(*selectedId))
         std::cout << "Contact deleted successfully.\n";
@@ -212,18 +242,48 @@ void ConsoleUI::deleteContact() {
         std::cout << "Contact not found or could not be deleted.\n";
 }
 
-void ConsoleUI::listContacts() const {
+void ConsoleUI::listContacts() const
+{
     auto contacts = directory.getAllContacts();
 
-    if (contacts.empty()) {
+    if (contacts.empty())
+    {
         std::cout << "Directory is empty.\n";
         return;
     }
 
-    for (const Contact& contact : contacts) printContact(contact);
+    for (const Contact &contact : contacts)
+        printContact(contact);
 }
 
-void ConsoleUI::printHelp() const {
+void ConsoleUI::printHistory() const
+{
+    const auto records = history.getRecent();
+
+    if (records.empty())
+    {
+        std::cout << "Search history is empty.\n";
+        return;
+    }
+
+    for (const SearchRecord &record : records)
+    {
+        std::cout << searchKindName(record.kind) << " search: " << record.query << " | ";
+
+        std::time_t timestamp = record.timestamp;
+        const std::tm *date = std::localtime(&timestamp);
+
+        if (date != nullptr)
+            std::cout << std::put_time(date, "%d/%m/%Y %H:%M:%S");
+        else
+            std::cout << "Unknown time";
+
+        std::cout << '\n';
+    }
+}
+
+void ConsoleUI::printHelp() const
+{
     std::cout
         << "\nCommands:\n"
         << "add     - Add a contact\n"
@@ -231,37 +291,52 @@ void ConsoleUI::printHelp() const {
         << "update  - Search for and update a contact\n"
         << "delete  - Search for and delete a contact\n"
         << "list    - List all contacts\n"
+        << "history - Show recent searches\n"
         << "help    - Show commands\n"
         << "exit    - Exit\n\n";
 }
 
-void ConsoleUI::run() {
+void ConsoleUI::run()
+{
     std::cout << "Welcome to the Phone Directory!\n";
     printHelp();
 
     std::string command;
 
-    while (true) {
+    while (true)
+    {
         std::cout << "> ";
 
-        if (!std::getline(std::cin, command)) break;
+        if (!std::getline(std::cin, command))
+            break;
 
-        if (command == "add") addContact();
-        else if (command == "search") {
+        if (command == "add")
+            addContact();
+        else if (command == "search")
+        {
             std::vector<ContactId> matches = searchContacts();
-            if (matches.empty()) {
+            if (matches.empty())
+            {
                 std::cout << "No matching contacts found.\n";
-            } 
-            else {
+            }
+            else
+            {
                 std::cout << "Matching contacts:\n";
                 printContactMatches(matches, false);
             }
         }
-        else if (command == "update") updateContact();
-        else if (command == "delete") deleteContact();
-        else if (command == "list") listContacts();
-        else if (command == "help") printHelp();
-        else if (command == "exit") break;
+        else if (command == "update")
+            updateContact();
+        else if (command == "delete")
+            deleteContact();
+        else if (command == "list")
+            listContacts();
+        else if (command == "history")
+            printHistory();
+        else if (command == "help")
+            printHelp();
+        else if (command == "exit")
+            break;
         else
             std::cout << "Unknown command. Type 'help'.\n";
     }
